@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transformer-model
+  labels:
+    app: transformer-model
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: transformer-model
+  template:
+    metadata:
+      labels:
+        app: transformer-model
+    spec:
+      containers:
+      - name: transformer-model
+        image: ${DOCKER_REGISTRY}/transformer-model:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            cpu: "1"
+            memory: "2Gi"
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        env:
+        - name: MODEL_NAME
+          value: "bert-base-uncased"
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 60
+          periodSeconds: 15 
