@@ -1,0 +1,50 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+  KUBE_NAMESPACE: default
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update kube config
+        run: |
+          mkdir -p $HOME/.kube
+          echo "$KUBE_CONFIG" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Install kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Deploy to Kubernetes
+        run: |
+          # Update image in deployment
+          kubectl set image deployment/transformer-model \
+            transformer-model=ghcr.io/${{ github.repository }}:${{ github.ref_name }} \
+            --namespace=${{ env.KUBE_NAMESPACE }}
+          
+          # Verify deployment
+          kubectl rollout status deployment/transformer-model \
+            --namespace=${{ env.KUBE_NAMESPACE }}
+          
+          # Verify services
+          kubectl get services --namespace=${{ env.KUBE_NAMESPACE }}
+          
+          # Verify HPA
+          kubectl get hpa --namespace=${{ env.KUBE_NAMESPACE }} 
